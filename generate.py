@@ -76,7 +76,7 @@ def add_bash_to_code_blocks(markdown_string: str) -> str:
         if index == len(parts) - 1:
             markdown_string += part
         elif index % 2 == 0:
-            markdown_string += f"{part}```bash"
+            markdown_string += f"{part}```bash" if part.endswith("\n\n") else f"{part}\n```bash"
         else:
             markdown_string += f"{part}```"
     return markdown_string
@@ -116,6 +116,9 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
     if remidiation:
         remidiation = replace_remediation_headers(remidiation)
 
+    if default_value and not default_value.endswith('.'):
+        default_value += '.'  # Add a period at the end if it's missing
+
     file_suffix = str(recommendation).replace(".", "_") if recommendation else str(section).replace(".", "_")
     doc_filename = f"cis_v{benchmark_version.replace('.', '')}_{file_suffix}.md"
 
@@ -127,9 +130,9 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
         if description:
             markdown += f"\n\n{description}"
         else:
-            markdown += f"\n\n{title}"
+            markdown += f"\n\nThis section covers security recommendations for {title}."
         if rationale:
-            markdown += f"\n\n## Rationale\n\n{rationale}"
+            markdown += f"\n\n{rationale}"
         if remidiation:
             markdown += f"\n\n## Remediation\n\n{remidiation}"
         if default_value:
