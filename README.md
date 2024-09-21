@@ -49,3 +49,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - ~~It does not add `bash` to all code blocks. It is recommended to manually add `bash` to all code blocks.~~
 - It does not have support for controls yet.
+- In some ordered lists, the numbering is not correct, but that isn't a bug of this script, rather a bug in the CIS XLSX benchmark itself.
