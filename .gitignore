@@ -1,3 +1,11 @@
 .DS_Store
 cis*
 *.xlsx
+build/
+dist/
+*.egg-info/
+*.egg
+*.egg-info
+*.pyc
+*.pyo
+*.pyd
