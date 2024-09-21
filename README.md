@@ -15,6 +15,12 @@ This tool is an effort to reduce the manual effort in creating, updating and val
 ## Installation
 
 ```bash
+pip install git+https://github.com/subho57/cis-benchmark-docs-and-controls-generator
+```
+
+or install locally by cloning the repository:
+
+```bash
 git clone --depth=1 https://github.com/subho57/cis-benchmark-docs-and-controls-generator.git
 cd cis-benchmark-docs-and-controls-generator
 make install
