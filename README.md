@@ -47,5 +47,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Known Issues
 
-- It does not add `bash` to all code blocks. It is recommended to manually add `bash` to all code blocks.
-- 
+- ~~It does not add `bash` to all code blocks. It is recommended to manually add `bash` to all code blocks.~~

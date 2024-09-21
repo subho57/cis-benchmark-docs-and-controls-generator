@@ -70,16 +70,27 @@ def parse_benchmark(file_path: str) -> Tuple[ReadOnlyWorksheet, Optional[str], O
 
 
 def add_bash_to_code_blocks(markdown_string: str) -> str:
-    return markdown_string.replace("\n\n```", "\n\n```bash")
+    parts = markdown_string.split("```")
+    markdown_string = ""
+    for index, part in enumerate(parts):
+        if index == len(parts) - 1:
+            markdown_string += part
+        elif index % 2 == 0:
+            markdown_string += f"{part}```bash"
+        else:
+            markdown_string += f"{part}```"
+    return markdown_string
 
 
 def replace_remediation_headers(text: str) -> str:
     # Define the pattern to search for and its replacement
-    pattern = r'\*\*Remediate from (.*?)\*\*'
+    pattern1 = r'\*\*Remediate from (.*?)\*\*'
+    pattern2 = r'\*\*Remediation from (.*?)\*\*'
     replacement = r'### From \1'
 
     # Use re.sub to replace all occurrences
-    modified_text = re.sub(pattern, replacement, text)
+    modified_text = re.sub(pattern1, replacement, text)
+    modified_text = re.sub(pattern2, replacement, modified_text)
 
     return modified_text
 
