@@ -125,6 +125,18 @@ def replace_remediation_headers(text: str) -> str:
     return text
 
 
+def is_line_item(line: str, ignore_unordered: bool = False) -> bool:
+    striped_line = line.strip()
+    first_char = striped_line[0] if len(striped_line) else ''
+    second_char = striped_line[1] if len(striped_line) > 1 else ''
+    third_char = striped_line[2] if len(striped_line) > 2 else ''
+    last_char = striped_line[-1] if len(striped_line) else ''
+    is_item = first_char.isdigit() and second_char in [')', '.', ':'] or ignore_unordered or first_char in ['-', '*', '+'] and second_char == ' '
+    if second_char.isdigit() and first_char.isdigit() and third_char in [')', '.', ':']:
+        is_item = True
+    return is_item
+
+
 def renumber_markdown_lists(markdown_text):
     def replacement(match):
         nonlocal counter
@@ -150,7 +162,7 @@ def renumber_markdown_lists(markdown_text):
             numbered_line = re.sub(r'1\.(\s.*)', replacement, line)
             numbered_lines.append(numbered_line)
         else:
-            if in_list and line.strip() == '':
+            if in_list and (line.strip() == '' or is_line_item(line, True)):
                 in_list = False
             numbered_lines.append(line)
 
@@ -166,7 +178,9 @@ def trim_each_line(text: str) -> str:
             is_inside_code_block = not is_inside_code_block
         if is_inside_code_block or line.strip().startswith('```'):
             return line.strip()
-        if len(line.strip()) and line.strip()[0].isdigit() and line.lstrip()[1] == '.' and not line.endswith('.') and not line.endswith('.`') and not line.endswith(':'):
+        striped_line = line.strip()
+        last_char = striped_line[-1] if len(striped_line) else ''
+        if is_line_item(line) and last_char not in ['.', ':', '.`']:
             return line.rstrip() + '.'  # Add a period at the end of the line
         return line.rstrip()
     return '\n'.join([trim_line(line) for line in text.split('\n')])
