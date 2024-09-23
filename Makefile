@@ -19,7 +19,7 @@ dry-run:
 	rm -rf cis_v300
 	make lint-fix
 	@start_time=$$(date +%s); \
-	python3 $(current_dir)generate.py --benchmark CIS_Microsoft_Azure_Foundations_Benchmark_v3.0.0.xlsx --docs --controls --output ../../turbot/steampipe-mod-azure-compliance/; \
+	python3 $(current_dir)generate.py --benchmark CIS_Microsoft_Azure_Foundations_Benchmark_v3.0.0.xlsx --docs --controls; \
 	end_time=$$(date +%s); \
 	elapsed_time=$$((end_time - start_time)); \
 	echo "Time taken: $$elapsed_time seconds"

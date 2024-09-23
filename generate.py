@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
+import jsonc
 import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
@@ -69,30 +70,106 @@ def parse_benchmark(file_path: str) -> Tuple[ReadOnlyWorksheet, Optional[str], O
         sys.exit(1)
 
 
-def add_bash_to_code_blocks(markdown_string: str) -> str:
+def format_json_string(json_string: str) -> str:
+    try:
+        json_data = jsonc.loads(json_string)
+        formatted_json_string = jsonc.dumps(json_data, indent=2)
+        return formatted_json_string
+    except jsonc.JSONDecodeError:
+        print("Error: Invalid JSON string.", json_string)
+        return json_string
+
+
+def add_lang_to_code_blocks(markdown_string: str) -> str:
     parts = markdown_string.split("```")
     markdown_string = ""
+    code_block_lang = "bash"
     for index, part in enumerate(parts):
         if index == len(parts) - 1:
             markdown_string += part
         elif index % 2 == 0:
-            markdown_string += f"{part}```bash" if part.endswith("\n\n") else f"{part}\n```bash"
+            next_part = parts[index + 1]
+            if next_part.startswith("\n{"):
+                code_block_lang = "json"
+            else:
+                code_block_lang = "bash"
+            markdown_string += f"{part}```{code_block_lang}" if part.endswith("\n\n") else f"{part}\n```{code_block_lang}"
         else:
-            markdown_string += f"{part}```"
+            markdown_string += f"{part}```" if code_block_lang == "bash" else f"\n{format_json_string(part)}\n```"
+            next_part = parts[index + 1]
+            if not next_part.startswith("\n\n"):
+                markdown_string += "\n"
     return markdown_string
 
 
 def replace_remediation_headers(text: str) -> str:
     # Define the pattern to search for and its replacement
-    pattern1 = r'\*\*Remediate from (.*?)\*\*'
-    pattern2 = r'\*\*Remediation from (.*?)\*\*'
+    patterns = [
+        r'\*\*Remediate from (.*?)\:\*\*',
+        r'\*\*Remediate from (.*?)\*\*',
+        r'\*\*Remediation from (.*?)\:\*\*',
+        r'\*\*Remediation from (.*?)\*\*',
+        r'\*\*From (.*?)\:\*\*',
+        r'\*\*From (.*?)\*\*',
+        r'\*\*Audit from (.*?)\*\*',
+        r'\*\*Audit from (.*?)\:\*\*',
+    ]
     replacement = r'### From \1'
 
-    # Use re.sub to replace all occurrences
-    modified_text = re.sub(pattern1, replacement, text)
-    modified_text = re.sub(pattern2, replacement, modified_text)
+    for pattern in patterns:
+        # Use re.sub to replace all occurrences
+        text = re.sub(pattern, replacement, text)
 
-    return modified_text
+    text = re.sub(r'\*\*Step (.*?)\*\*', r'### Step \1', text)
+
+    return text
+
+
+def renumber_markdown_lists(markdown_text):
+    def replacement(match):
+        nonlocal counter
+        counter += 1
+        replaced_str = f"{counter}.{match.group(1)}"
+        if not replaced_str.endswith('.') and not replaced_str.endswith('.`') and not replaced_str.endswith(':'):
+            replaced_str += '.'
+        return replaced_str
+
+    lines = markdown_text.split('\n')
+    numbered_lines = []
+    counter = 0
+    in_list = False
+
+    for index, line in enumerate(lines):
+        if re.match(r'1\.\s', line):
+            if not in_list:
+                counter = 0
+                in_list = True
+                previous_line = lines[index - 1]
+                if previous_line != '':
+                    numbered_lines.append('')
+            numbered_line = re.sub(r'1\.(\s.*)', replacement, line)
+            numbered_lines.append(numbered_line)
+        else:
+            if in_list and line.strip() == '':
+                in_list = False
+            numbered_lines.append(line)
+
+    return '\n'.join(numbered_lines)
+
+
+def trim_each_line(text: str) -> str:
+    is_inside_code_block = False
+
+    def trim_line(line: str) -> str:
+        nonlocal is_inside_code_block
+        if line.strip().startswith('```'):
+            is_inside_code_block = not is_inside_code_block
+        if is_inside_code_block or line.strip().startswith('```'):
+            return line.strip()
+        if len(line.strip()) and line.strip()[0].isdigit() and line.lstrip()[1] == '.' and not line.endswith('.') and not line.endswith('.`') and not line.endswith(':'):
+            return line.rstrip() + '.'  # Add a period at the end of the line
+        return line.rstrip()
+    return '\n'.join([trim_line(line) for line in text.split('\n')])
 
 
 def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchmark_version: str, generate_doc: bool = True,
@@ -116,7 +193,7 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
     if remidiation:
         remidiation = replace_remediation_headers(remidiation)
 
-    if default_value and not default_value.endswith('.'):
+    if default_value and not default_value.endswith('.') and not default_value.endswith('.`'):
         default_value += '.'  # Add a period at the end if it's missing
 
     file_suffix = str(recommendation).replace(".", "_") if recommendation else str(section).replace(".", "_")
@@ -138,8 +215,11 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
         if default_value:
             markdown += f"\n\n### Default Value\n\n{default_value}"
         if markdown:
-            markdown = add_bash_to_code_blocks(markdown)
-            markdown += "\n"
+            markdown = trim_each_line(markdown)
+            markdown = add_lang_to_code_blocks(markdown)
+            markdown = renumber_markdown_lists(markdown)
+            if not markdown.endswith('\n'):
+                markdown += "\n"
 
     control: Optional[str] = None
     if generate_control:

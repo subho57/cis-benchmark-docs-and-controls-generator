@@ -2,10 +2,11 @@ from setuptools import setup
 
 setup(
     name='cis-benchmark-generator',
-    version='0.1.0',
+    version='0.1.1',
     py_modules=['generate'],
     include_package_data=True,
     install_requires=[
+        'json-with-comments',
         'pandas',
         'openpyxl',
     ],
