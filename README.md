@@ -6,6 +6,7 @@ This tool is an effort to reduce the manual effort in creating, updating and val
 **NOTE**:
 - This tool is still in development and may not work as expected.
 - This tool is tested with CIS Microsoft Azure Foundations Benchmark v3.0.0 - XLSX
+- This tool is tested with CIS Amazon Web Services Benchmark v3.0.0 - XLSX
 - This tool requires one to have the CIS Secure Suite Membership to download the CIS benchmarks in XLSX format.
 
 ## Prerequisites

@@ -130,8 +130,9 @@ def is_line_item(line: str, ignore_unordered: bool = False) -> bool:
     first_char = striped_line[0] if len(striped_line) else ''
     second_char = striped_line[1] if len(striped_line) > 1 else ''
     third_char = striped_line[2] if len(striped_line) > 2 else ''
-    last_char = striped_line[-1] if len(striped_line) else ''
-    is_item = first_char.isdigit() and second_char in [')', '.', ':'] or ignore_unordered or first_char in ['-', '*', '+'] and second_char == ' '
+    is_item = first_char.isdigit() and second_char in [')', '.', ':']
+    if not ignore_unordered and first_char in ['-', '*', '+'] and second_char == ' ':
+        is_item = True
     if second_char.isdigit() and first_char.isdigit() and third_char in [')', '.', ':']:
         is_item = True
     return is_item
@@ -142,7 +143,7 @@ def renumber_markdown_lists(markdown_text):
         nonlocal counter
         counter += 1
         replaced_str = f"{counter}.{match.group(1)}"
-        if not replaced_str.endswith('.') and not replaced_str.endswith('.`') and not replaced_str.endswith(':'):
+        if not replaced_str.endswith('.') and not replaced_str.endswith('.`') and not replaced_str.endswith(':') and not replaced_str.endswith(','):
             replaced_str += '.'
         return replaced_str
 
@@ -169,18 +170,32 @@ def renumber_markdown_lists(markdown_text):
     return '\n'.join(numbered_lines)
 
 
+def is_url(word: str) -> bool:
+    return word.startswith('http://') or word.startswith('https://')
+
+
+def convert_to_md_url(word: str) -> str:
+    if is_url(word):
+        word = word.removesuffix('.')
+        return f"[{word}]({word})"
+    return word
+
+
 def trim_each_line(text: str) -> str:
     is_inside_code_block = False
 
     def trim_line(line: str) -> str:
+        line = ' '.join([convert_to_md_url(word) for word in line.split(' ')])
+        striped_line = line.strip()
+        # if striped_line.startswith('**') and striped_line.endswith('**'):
+        #     return f"### {striped_line[2:-2]}"
         nonlocal is_inside_code_block
         if line.strip().startswith('```'):
             is_inside_code_block = not is_inside_code_block
         if is_inside_code_block or line.strip().startswith('```'):
             return line.strip()
-        striped_line = line.strip()
-        last_char = striped_line[-1] if len(striped_line) else ''
-        if is_line_item(line) and last_char not in ['.', ':', '.`']:
+        if is_line_item(line, True) and not striped_line.endswith('.') and not striped_line.endswith(
+                '.`') and not striped_line.endswith(':') and not striped_line.endswith(','):
             return line.rstrip() + '.'  # Add a period at the end of the line
         return line.rstrip()
     return '\n'.join([trim_line(line) for line in text.split('\n')])
@@ -190,15 +205,15 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
                          generate_control: bool = True) -> Tuple[Optional[Dict[str, str]], Optional[str]]:
     if not (generate_doc or generate_control):
         return None, None
-    section = benchmark_data['Section #']
-    recommendation = benchmark_data['Recommendation #']
-    profile = benchmark_data['Profile']
-    title = benchmark_data['Title']
-    status = benchmark_data['Assessment Status']
-    description = benchmark_data['Description']
-    rationale = benchmark_data['Rationale Statement']
-    remidiation = benchmark_data['Remediation Procedure']
-    default_value = benchmark_data['Default Value']
+    section: str = benchmark_data['Section #']
+    recommendation: str = benchmark_data['Recommendation #']
+    profile: str = benchmark_data['Profile']
+    title: str = benchmark_data['Title']
+    status: str = benchmark_data['Assessment Status']
+    description: str = benchmark_data['Description']
+    rationale: str = benchmark_data['Rationale Statement']
+    remidiation: str = benchmark_data['Remediation Procedure']
+    default_value: str = benchmark_data['Default Value']
 
     if not (section and title):
         print(f"Skipping: {section} - {title}")
@@ -207,7 +222,7 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
     if remidiation:
         remidiation = replace_remediation_headers(remidiation)
 
-    if default_value and not default_value.endswith('.') and not default_value.endswith('.`'):
+    if default_value and not default_value.endswith('.') and not default_value.endswith('.`') and len(default_value.split(' ')) != 1:
         default_value += '.'  # Add a period at the end if it's missing
 
     file_suffix = str(recommendation).replace(".", "_") if recommendation else str(section).replace(".", "_")
