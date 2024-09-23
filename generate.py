@@ -53,7 +53,7 @@ def extract_benchmark_info(filename: str) -> Tuple[Optional[str], Optional[str]]
     return None, None
 
 
-def parse_benchmark(file_path: str) -> Tuple[ReadOnlyWorksheet, Optional[str], Optional[str]]:
+def parse_benchmark(file_path: str) -> Tuple[ReadOnlyWorksheet, ReadOnlyWorksheet, Optional[str], Optional[str]]:
     try:
         workbook = load_workbook(filename=file_path, read_only=True)
         # Add your parsing logic here
@@ -63,7 +63,8 @@ def parse_benchmark(file_path: str) -> Tuple[ReadOnlyWorksheet, Optional[str], O
             print("Error: Combined Profiles sheet not found in the workbook.")
             sys.exit(1)
         benchmark_name, benchmark_version = extract_benchmark_info(os.path.basename(file_path))
-        return workbook['Combined Profiles'], benchmark_name, benchmark_version
+        overview_worksheet = workbook['Overview - Glossary'] if 'Overview - Glossary' in workbook.sheetnames else None
+        return workbook['Combined Profiles'], overview_worksheet, benchmark_name, benchmark_version
         # Return parsed data or perform further operations
     except Exception as e:
         print(f"Error parsing benchmark file: {e}")
@@ -260,8 +261,32 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
     return doc, control
 
 
+def generate_overview_doc(overview_data: ReadOnlyWorksheet, benchmark_name: str) -> str:
+    levels = {}
+    overview = None
+    rows = list(overview_data.iter_rows(values_only=True))
+    for index, row in enumerate(rows):
+        value: str = row[0]
+        if value and value.startswith('Level '):
+            levels[value] = rows[index + 1][0]
+        if value == 'Overview':
+            overview = rows[index + 1][0].splitlines()[0]
+    if overview:
+        overview = overview.replace('This spreadsheet', f'The CIS {benchmark_name} Benchmark')
+    markdown = f"To obtain the latest version of the official guide, please visit http://benchmarks.cisecurity.org.\n\n## Overview\n\n{overview}\n\n## Profiles\n\n"
+    level_descriptions = "\n\n".join([f"### {level}\n\n{description}" for level, description in levels.items()])
+    markdown += level_descriptions.replace('  ', ' ')
+    if not markdown.endswith('\n'):
+        markdown += "\n"
+    markdown = trim_each_line(markdown)
+    markdown = add_lang_to_code_blocks(markdown)
+    print(f"Generating Overview documentation for {benchmark_name}")
+    return markdown
+
+
 def generate_docs_and_controls(
         profiles_worksheet: ReadOnlyWorksheet,
+        overview_data: Optional[ReadOnlyWorksheet],
         output_dir: str,
         benchmark_name: str,
         benchmark_version: str,
@@ -275,6 +300,10 @@ def generate_docs_and_controls(
 
     output_path = Path(output_dir) / f"cis_v{benchmark_version.replace('.', '')}" / "docs"
     output_path.mkdir(parents=True, exist_ok=True)
+
+    if generate_docs and overview_data:
+        overview = generate_overview_doc(overview_data, benchmark_name)
+        Path(output_path / "cis_overview.md").write_text(overview)
 
     benchmarks = [parse_each_benchmark(row, benchmark_name, benchmark_version, generate_docs, generate_controls) for _, row in df.iterrows()]
     for i, (doc, control) in enumerate(benchmarks):
@@ -294,7 +323,7 @@ def main():
         sys.exit(0)
 
     validate_benchmark_file(args.benchmark)
-    parsed_data, benchmark_name, benchmark_version = parse_benchmark(args.benchmark)
+    parsed_data, overview, benchmark_name, benchmark_version = parse_benchmark(args.benchmark)
 
     if not benchmark_name or not benchmark_version:
         print("Error: Could not extract benchmark name and version from the filename. Ensure the filename follows the CIS Benchmark naming convention.")
@@ -302,7 +331,7 @@ def main():
 
     os.makedirs(args.output, exist_ok=True)
 
-    generate_docs_and_controls(parsed_data, args.output, benchmark_name, benchmark_version, args.docs, args.controls)
+    generate_docs_and_controls(parsed_data, overview, args.output, benchmark_name, benchmark_version, args.docs, args.controls)
 
     print(f"Output generated in directory: {args.output}")
 

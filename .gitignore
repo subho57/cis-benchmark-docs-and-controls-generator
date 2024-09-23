@@ -1,6 +1,7 @@
 .DS_Store
 cis*
-*.xlsx
+~$CIS*
+!benchmarks/cis*
 build/
 dist/
 *.egg-info/
