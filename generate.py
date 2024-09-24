@@ -220,6 +220,9 @@ def parse_each_benchmark(benchmark_data: pd.Series, benchmark_name: str, benchma
         print(f"Skipping: {section} - {title}")
         return None, None
 
+    if description and not description.endswith('.') and not description.endswith('.`') and len(description.split(' ')) != 1:
+        description += '.'
+
     if remidiation:
         remidiation = replace_remediation_headers(remidiation)
 
@@ -273,7 +276,7 @@ def generate_overview_doc(overview_data: ReadOnlyWorksheet, benchmark_name: str)
             overview = rows[index + 1][0].splitlines()[0]
     if overview:
         overview = overview.replace('This spreadsheet', f'The CIS {benchmark_name} Benchmark')
-    markdown = f"To obtain the latest version of the official guide, please visit http://benchmarks.cisecurity.org.\n\n## Overview\n\n{overview}\n\n## Profiles\n\n"
+    markdown = f"To obtain the latest version of the official guide, please visit http://benchmarks.cisecurity.org.\n\n## Overview\n\n{overview}\n\n## Profiles\n\nThe following configuration profiles are defined by this Benchmark:\n\n"
     level_descriptions = "\n\n".join([f"### {level}\n\n{description}" for level, description in levels.items()])
     markdown += level_descriptions.replace('  ', ' ')
     if not markdown.endswith('\n'):
